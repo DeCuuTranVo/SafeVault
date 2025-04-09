@@ -1,0 +1,22 @@
+﻿<h3>WebForm</h3>
+
+<EditForm Model="@userModel" OnValidSubmit="HandleValidSubmit">
+    <InputText id="username" @bind-Value="userModel.Username" />
+    <InputText id="email" @bind-Value="userModel.Email" type="email" />
+    <button type="submit">Submit</button>
+</EditForm>
+
+@code {
+    private UserModel userModel = new UserModel();
+
+    private void HandleValidSubmit()
+    {
+        // C# logic here
+    }
+
+    public class UserModel
+    {
+        public string Username { get; set; }
+        public string Email { get; set; }
+    }
+}
