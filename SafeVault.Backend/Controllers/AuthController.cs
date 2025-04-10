@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using SafeVault.Backend.Models;
 using SafeVault.Backend.Models.Dto;
 using SafeVault.Backend.Services;
+using SafeVault.Backend.Utilities;
 using System.Security.Claims;
 using System.Text;
 
@@ -37,11 +38,28 @@ namespace SafeVault.Backend.Controllers
         public async Task<IActionResult> Login([FromBody] UserLoginDto loginDto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+                return BadRequest(new { Message = "Invalid request format" });
+
+            string allowedSpecialCharacters = "!@#$%^&*?";
+
+            if (!ValidationHelpers.IsValidInput(loginDto.UsernameOrEmail, "@.") ||
+                !ValidationHelpers.IsValidInput(loginDto.Password, allowedSpecialCharacters))
+            {
+                return BadRequest(new { Message = "Invalid input format" });
+            }
+
+            if (!XssSanitizer.IsValidXSSInput(loginDto.UsernameOrEmail) ||
+                !XssSanitizer.IsValidXSSInput(loginDto.Password))
+            {
+                return BadRequest(new { Message = "Potential XSS detected" });
+            }
 
             var user = await _authService.GetUserByUsernameOrEmail(loginDto.UsernameOrEmail);
             if (user == null || !await _authService.AuthenticateUser(loginDto.UsernameOrEmail, loginDto.Password))
+            {
+                // Log failed login attempts for monitoring
                 return Unauthorized(new { Message = "Invalid credentials" });
+            }
 
             // Generate JWT token
             var token = GenerateJwtToken(user);
@@ -52,6 +70,7 @@ namespace SafeVault.Backend.Controllers
                 Token = token
             });
         }
+
 
         // Helper method to generate JWT token
         private string GenerateJwtToken(User user)

@@ -22,6 +22,60 @@ namespace SafeVault.Backend.Testing
         }
 
         [Test]
+        public async Task Login_SQLInjectionAttempt_ReturnsBadRequest()
+        {
+            // Arrange
+            var loginDto = new
+            {
+                UsernameOrEmail = "admin'--",
+                Password = "irrelevant"
+            };
+            var content = new StringContent(JsonSerializer.Serialize(loginDto), Encoding.UTF8, "application/json");
+
+            // Act
+            var response = await _client.PostAsync("/api/auth/login", content);
+
+            // Assert
+            Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Test]
+        public async Task Login_XSSAttempt_ReturnsBadRequest()
+        {
+            // Arrange
+            var loginDto = new
+            {
+                UsernameOrEmail = "<script>alert('XSS')</script>",
+                Password = "irrelevant"
+            };
+            var content = new StringContent(JsonSerializer.Serialize(loginDto), Encoding.UTF8, "application/json");
+
+            // Act
+            var response = await _client.PostAsync("/api/auth/login", content);
+
+            // Assert
+            Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Test]
+        public async Task Login_ValidCredentials_ReturnsOk()
+        {
+            // Arrange
+            var loginDto = new
+            {
+                UsernameOrEmail = "user00@user.com",     
+                Password = "P@ssw0rd",
+            };
+            var content = new StringContent(JsonSerializer.Serialize(loginDto), Encoding.UTF8, "application/json");
+
+            // Act
+            var response = await _client.PostAsync("/api/auth/login", content);
+
+            // Assert
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, response.StatusCode);
+        }
+
+        [Test]
         public async Task Login_InvalidCredentials_ReturnsUnauthorized()
         {
             // Arrange

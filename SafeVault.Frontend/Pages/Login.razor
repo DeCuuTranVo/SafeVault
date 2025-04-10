@@ -1,0 +1,157 @@
+﻿@page "/login"
+
+@using SafeVault.Frontend.Models
+@using SafeVault.Frontend.Models.Dto
+
+<h3 class="form-title">Login</h3>
+
+<EditForm Model="@userModel" OnValidSubmit="HandleValidSubmit" class="login-form">
+    <DataAnnotationsValidator />
+    @* <ValidationSummary class="validation-summary" /> *@
+
+    <div class="form-group">
+        <label>Select Login Method:</label>
+        <InputRadioGroup @bind-Value="loginOption" class="radio-group">
+            <InputRadio Value="@usernameOption"> Username </InputRadio>
+            <InputRadio Value="@emailOption"> Email </InputRadio>
+        </InputRadioGroup>
+    </div>
+
+    @if (loginOption == "username")
+    {
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <InputText id="username" @bind-Value="userModel.Username" class="form-control" />
+            <ValidationMessage For="@(() => userModel.Username)" />
+        </div>
+    }
+    else if (loginOption == "email")
+    {
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <InputText id="email" @bind-Value="userModel.Email" type="email" class="form-control" />
+            <ValidationMessage For="@(() => userModel.Email)" />
+        </div>
+    }
+
+    <div class="form-group">
+        <label for="password">Password:</label>
+        <InputText id="password" @bind-Value="userModel.Password" type="password" class="form-control" />
+        <ValidationMessage For="@(() => userModel.Password)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Login</button>
+</EditForm>
+
+<!-- Modal Dialog -->
+@if (showDialog)
+{
+    <h4>@dialogTitle</h4>
+    <p>@dialogMessage</p>
+    <button class="btn btn-primary" @onclick="ProceedOperation">OK</button>
+
+@*     <div class="modal-overlay">
+        <div class="modal">
+
+        </div>
+    </div> *@
+}
+
+@code {
+    private UserLoginModel userModel = new UserLoginModel();
+    private string loginOption = "username"; // Default to username
+    private string usernameOption = "username";
+    private string emailOption = "email";
+
+    private bool showDialog = false;
+    private string dialogTitle = string.Empty;
+    private string dialogMessage = string.Empty;
+    private bool proceed = false;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Sanitize inputs
+            userModel.Username = SanitizeInput(userModel.Username);
+            userModel.Email = SanitizeInput(userModel.Email);
+            userModel.Password = SanitizeInput(userModel.Password);
+
+            // Prepare the login payload
+            var payload = new UserLoginDto()
+                {
+                    UsernameOrEmail = loginOption == "username" ? userModel.Username : userModel.Email,
+                    Password = userModel.Password
+                };
+
+            // Call the /api/auth/login endpoint
+            var response = await Http.PostAsJsonAsync("/api/auth/login", payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Show success dialog
+                dialogTitle = "Login Successful";
+                dialogMessage = "You have successfully logged in.";
+                showDialog = true;
+
+				StateHasChanged();
+                // Wait for the user to click "OK"
+                // while (!proceed)
+                // {
+                //     await Task.Delay(3000);
+                // }
+
+                // Redirect to the home page
+                // NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                // Show failure dialog
+                dialogTitle = "Login Failed";
+                dialogMessage = "Invalid username or password.";
+                showDialog = true;
+
+                StateHasChanged();
+                // Wait for the user to click "OK"
+                // while (!proceed)
+                // {
+                //     await Task.Delay(3000);
+                // }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Show error dialog
+            dialogTitle = "Error";
+            dialogMessage = $"An error occurred: {ex.Message}";
+            showDialog = true;
+        }
+    }
+
+    private void ProceedOperation()
+    {
+        proceed = true;
+        showDialog = false;
+    }
+
+    private string SanitizeInput(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return input;
+
+        // Remove potentially harmful characters
+        return input.Replace("<", string.Empty)
+                    .Replace(">", string.Empty)
+                    .Replace(";", string.Empty)
+                    .Replace("--", string.Empty)
+                    .Replace("'", string.Empty)
+                    .Replace("\"", string.Empty)
+                    .Trim();
+    }
+
+    [Inject]
+    private HttpClient Http { get; set; }
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+}
